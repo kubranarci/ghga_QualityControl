@@ -95,8 +95,8 @@
         ],
         "dependentRequired": {
             "fastq_2": ["fastq_1"],
-            "bai": ["bam", "single_end"],
-            "crai": ["cram", "single_end"]
+            "bam": ["single_end"],
+            "cram": ["single_end"]
         },
         "required": ["sample"],
         "uniqueEntries": ["lane", "sample"]

@@ -71,26 +71,30 @@ workflow PIPELINE_INITIALISATION {
     // Create channel from input file provided through params.input
     //
 
-    Channel
+Channel
         .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
         .map {
             meta, fastq_1, fastq_2, cram, crai, bam, bai, vcf  ->
                 if (fastq_1){
-                    if (!fastq_2) {
-                        return [ meta + [single_end:true] + [ step:1 ], fastq_1 ]
+                    if (fastq_2) {
+                        return [ meta + [single_end:false, step:1 ], [ fastq_1, fastq_2 ] ]
                     } else {
-                        return [ meta + [single_end:false] + [ step:1 ], [ fastq_1, fastq_2 ] ]
+                        return [ meta + [single_end:true, step:1 ], [ fastq_1 ] ]
                     }
                 }
                 else if (cram){
                     return [ meta + [ step:2 ], cram, crai ]
                 }
                 else if (bam){
-                    return [ meta + [ step:2 ], bam, bai ]
+                    if (params.method in ["wgs", "wes", "tes"]){
+                        return [ meta + [ step:2 ], bam, bai ]
+                    }
+                    else{
+                        return [ meta + [ step:2 ], bam ]
+                    }
                 }
                 else return [ meta + [ step:3 ], vcf ]
         }
-        .groupTuple()
         .set { ch_samplesheet }
 
     emit:

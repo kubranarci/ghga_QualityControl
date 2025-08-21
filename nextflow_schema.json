@@ -35,7 +35,7 @@
                     "fa_icon": "fas fa-play",
                     "description": "Sequencing method",
                     "help_text": "The pipeline applies necessary quality control steps necessary for this sequencing type.",
-                    "enum": ["whole_genome", "whole_exome", "targetted", "rna", "nanopore"]
+                    "enum": ["wgs", "wes", "tes", "rna", "nanopore", "pacbio"]
                 },
                 "sequencer": {
                     "type": "string",
@@ -44,6 +44,20 @@
                     "description": "Sequence Manufacturer",
                     "help_text": "The pipeline applies necessary quality control steps necessary for this sequencer type",
                     "enum": ["illumina", "pacbio"]
+                },
+                "predict_sex": {
+                    "type": "boolean",
+                    "default": "false",
+                    "fa_icon": "fas fa-play",
+                    "description": "Predict sex",
+                    "help_text": "Run sex prediction"
+                },
+                "samplegender_method": {
+                    "type": "string",
+                    "default": "xy",
+                    "description": "Method selection for ngs-bits samplegender",
+                    "fa_icon": "fas fa-align-center",
+                    "enum": ["xy", "hetx", "sry"]
                 },
                 "email": {
                     "type": "string",
@@ -78,6 +92,16 @@
                     "mimetype": "text/plain",
                     "pattern": "^\\S+\\.fn?a(sta)?(\\.gz)?$",
                     "description": "Path to FASTA genome file.",
+                    "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a BWA index available this will be generated for you automatically. Combine with `--save_reference` to save BWA index for future runs.",
+                    "fa_icon": "far fa-file-code"
+                },
+                "fai": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.fai$",
+                    "mimetype": "text/plain",
+                    "description": "Path to FAI genome file.",
                     "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a BWA index available this will be generated for you automatically. Combine with `--save_reference` to save BWA index for future runs.",
                     "fa_icon": "far fa-file-code"
                 },
