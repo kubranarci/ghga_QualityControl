@@ -1,3 +1,0 @@
-sample,status,bam,bai,single_end
-1234N,0,https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam,https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam.bai,false
-1234T,1,https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam,https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam.bai,false

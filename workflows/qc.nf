@@ -5,7 +5,11 @@
 */
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { FASTP                  } from '../modules/nf-core/fastp/main'
+include { NANOPLOT               } from '../modules/nf-core/nanoplot/main'
+include { SAMTOOLS_FASTQ         } from '../modules/nf-core/samtools/fastq/main'
+include { FASTPLONG              } from '../modules/nf-core/fastplong/main'
 include { MOSDEPTH               } from '../modules/nf-core/mosdepth/main'
+include { PICARD_COLLECTMULTIPLEMETRICS } from '../modules/nf-core/picard/collectmultiplemetrics/main'
 include { SAMTOOLS_STATS         } from '../modules/nf-core/samtools/stats/main'
 include { TABIX_TABIX            } from '../modules/nf-core/tabix/tabix/main'
 include { BCFTOOLS_STATS         } from '../modules/nf-core/bcftools/stats/main'
@@ -48,29 +52,74 @@ workflow QC {
         other:false
     }.set{samplesheet}
 
-    samplesheet.step1.view()
-    // Runs FASTQC if samplesheet has fastq files
-    FASTQC (
-        samplesheet.step1
-    )
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    // step1: check fastq files
 
-    // Runs FASTP if samplesheet has fastq files
-    save_trimmed_fail = false
-    save_merged = false
-    FASTP (
-        samplesheet.step1,
-        [],
-        false,
-        save_trimmed_fail,
-        save_merged
-    )
-    ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect { _meta, json -> json })
-    ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.html.collect { _meta, html -> html })
-    ch_versions = ch_versions.mix(FASTP.out.versions)
+    if (params.method in ["wgs", "wes", "tes", "atacseq", "chipseq", "rna", "nanopore", "smrnaseq", "methylseq"]){
+        // Runs FASTQC if samplesheet has fastq files
+        FASTQC (
+            samplesheet.step1
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
+        ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
-    if (params.method in ["wgs", "wes", "tes"]){
+        // Runs FASTP if samplesheet has fastq files
+        save_trimmed_fail = false
+        save_merged = false
+        FASTP (
+            samplesheet.step1,
+            [],
+            false,
+            save_trimmed_fail,
+            save_merged
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect { _meta, json -> json })
+        ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.html.collect { _meta, html -> html })
+        ch_versions = ch_versions.mix(FASTP.out.versions)
+    }
+    if (params.method in ["nanopore"]){
+        // Runs FASTQC if samplesheet has fastq files
+        NANOPLOT (
+            samplesheet.step1
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(NANOPLOT.out.txt.collect{it[1]})
+        ch_multiqc_files = ch_multiqc_files.mix(NANOPLOT.out.log.collect{it[1]})
+        ch_versions = ch_versions.mix(NANOPLOT.out.versions)
+    }
+
+    if (params.method in ["pacbio"]){
+
+        // Convert read BAMs to FASTQs
+        def samtools_fastq_interleave = false
+        SAMTOOLS_FASTQ(
+            samplesheet.step2,
+            samtools_fastq_interleave,
+        )
+        ch_versions = ch_versions.mix(SAMTOOLS_FASTQ.out.versions)
+
+        // Run fastplong for pacbio samples
+        FASTPLONG(
+            SAMTOOLS_FASTQ.out.other.mix(samplesheet.step1),
+            [],
+            false,
+            false
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(FASTPLONG.out.json.collect { _meta, json -> json })
+        ch_multiqc_files = ch_multiqc_files.mix(FASTPLONG.out.html.collect { _meta, html -> html })
+        ch_versions = ch_versions.mix(FASTPLONG.out.versions)
+    }
+
+    // step2: check bam/cram files
+
+    if (params.method in ["wgs", "wes", "tes", "atacseq", "chipseq"]){
+        // this can be replaced if more than once tool will use fai
+        SAMTOOLS_FAIDX(
+            ch_fasta,
+            [[],[]],
+            false
+        )
+        ch_fai = SAMTOOLS_FAIDX.out.fai
+        ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
+
         // Runs MOSDEPTH if samplesheet has bam/cram files (targetted, wes, wgs will be different)
         MOSDEPTH(
             samplesheet.step2.map{meta, file, index -> tuple(meta, file, index, []) },
@@ -88,6 +137,15 @@ workflow QC {
         ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_STATS.out.stats.map { _meta, file -> file }.collect())
         ch_versions = ch_versions.mix(SAMTOOLS_STATS.out.versions)
 
+        // Runs PICARD_COLLECTMULTIPLEMETRICS if samplesheet has bam/cram files
+        PICARD_COLLECTMULTIPLEMETRICS(
+            samplesheet.step2,
+            ch_fasta,
+            ch_fai
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(PICARD_COLLECTMULTIPLEMETRICS.out.metrics.map { _meta, file -> file }.collect())
+        ch_versions = ch_versions.mix(PICARD_COLLECTMULTIPLEMETRICS.out.versions)
+
     }
 
     if (params.method.contains("rna")){
@@ -101,26 +159,18 @@ workflow QC {
 
     if (params.predict_sex && params.method.contains("wgs") ){
 
-        // this can be replaced if more than once tool will use fai
-        SAMTOOLS_FAIDX(
-            ch_fasta,
-            [[],[]],
-            false
-        )
-        ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
-
-
         // Predict sex of the samples if not given
         NGSBITS_SAMPLEGENDER(
             samplesheet.step2,
             ch_fasta,
-            SAMTOOLS_FAIDX.out.fai,
+            ch_fai,
             params.samplegender_method ?: 'xy'
         )
         ch_multiqc_files = ch_multiqc_files.mix(NGSBITS_SAMPLEGENDER.out.tsv.map { _meta, file -> file }.collect())
         ch_versions = ch_versions.mix(NGSBITS_SAMPLEGENDER.out.versions)
     }
 
+    // step3: check vcf files
 
     // Runs BCFTOOLS_STATS if samplesheet has vcf files (targetted, wes, wgs will be different)
     // TODO add support for vcf and bcf-bcf.gz
@@ -144,6 +194,8 @@ workflow QC {
     )
     ch_multiqc_files = ch_multiqc_files.mix(BCFTOOLS_STATS.out.stats.map { _meta, file -> file }.collect())
     ch_versions = ch_versions.mix(BCFTOOLS_STATS.out.versions)
+
+    //TODO: ADD A TOOL TO PREDICT CONTAMINATIONS BTW SOMATIC AND NORMAL CELLS
 
     //
     // Collate and save software versions

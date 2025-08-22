@@ -35,7 +35,18 @@
                     "fa_icon": "fas fa-play",
                     "description": "Sequencing method",
                     "help_text": "The pipeline applies necessary quality control steps necessary for this sequencing type.",
-                    "enum": ["wgs", "wes", "tes", "rna", "nanopore", "pacbio"]
+                    "enum": [
+                        "wgs",
+                        "wes",
+                        "tes",
+                        "rna",
+                        "nanopore",
+                        "pacbio",
+                        "atacseq",
+                        "chipseq",
+                        "smrnaseq",
+                        "methylseq"
+                    ]
                 },
                 "sequencer": {
                     "type": "string",
@@ -43,7 +54,7 @@
                     "fa_icon": "fas fa-play",
                     "description": "Sequence Manufacturer",
                     "help_text": "The pipeline applies necessary quality control steps necessary for this sequencer type",
-                    "enum": ["illumina", "pacbio"]
+                    "enum": ["illumina", "pacbio", "nanopore"]
                 },
                 "predict_sex": {
                     "type": "boolean",
