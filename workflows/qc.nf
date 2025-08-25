@@ -39,6 +39,14 @@ workflow QC {
     ch_fasta       = Channel.fromPath(params.fasta, checkIfExists: true)
                         .map{ fasta -> tuple([id: fasta.getSimpleName()], fasta) }.collect()
 
+    ch_fai         = params.fasta_fai ? Channel.fromPath(params.fasta_fai, checkIfExists: true).map{ fai -> tuple([id: fai.getSimpleName()], fai) }.collect()
+                                         : Channel.empty()
+    ch_intervals   = params.intervals ? Channel.fromPath(params.intervals, checkIfExists: true).map{ intervals -> tuple([id: intervals.getSimpleName()], intervals) }.collect()
+                                         : Channel.empty()
+    ch_gtf         = params.gtf       ? Channel.fromPath(params.gtf, checkIfExists: true).map{ gtf -> tuple([id: gtf.getSimpleName()], gtf) }.collect()
+                                         : Channel.empty()
+    ch_bed12       = params.bed12     ? Channel.fromPath(params.bed12, checkIfExists: true).map{ bed12 -> tuple([id: bed12.getSimpleName()], bed12) }.collect()
+                                         : Channel.empty()
 
     // create empty channels for versions and multiqc files
     ch_versions = Channel.empty()
@@ -111,18 +119,31 @@ workflow QC {
     // step2: check bam/cram files
 
     if (params.method in ["wgs", "wes", "tes", "atacseq", "chipseq"]){
-        // this can be replaced if more than once tool will use fai
-        SAMTOOLS_FAIDX(
-            ch_fasta,
-            [[],[]],
-            false
-        )
-        ch_fai = SAMTOOLS_FAIDX.out.fai
-        ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
 
-        // Runs MOSDEPTH if samplesheet has bam/cram files (targetted, wes, wgs will be different)
+        if (!ch_fai){
+            // this can be replaced if more than once tool will use fai
+            SAMTOOLS_FAIDX(
+                ch_fasta,
+                [[],[]],
+                false
+            )
+            ch_fai = SAMTOOLS_FAIDX.out.fai
+            ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
+        }
+        // Runs MOSDEPTH if samplesheet has bam/cram files
+
+        if (params.method in ["wes", "tes", "atacseq", "chipseq"]){
+            samplesheet.step2.combine(ch_intervals)
+                                .map{meta, file, index, _meta2, intervals -> tuple(meta, file, index, intervals) }
+                                .set{ch_mosdepth}
+        }
+        else{
+            samplesheet.step2
+                            .map{meta, file, index -> tuple(meta, file, index, []) }
+                            .set{ch_mosdepth}
+        }
         MOSDEPTH(
-            samplesheet.step2.map{meta, file, index -> tuple(meta, file, index, []) },
+            ch_mosdepth,
             ch_fasta
         )
         ch_multiqc_files = ch_multiqc_files.mix(MOSDEPTH.out.global_txt.map { _meta, file -> file }.collect())

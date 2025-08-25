@@ -13,7 +13,12 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 include { getGenomeAttribute      } from './subworkflows/local/utils_nfcore_qc_pipeline'
-params.fasta = getGenomeAttribute('fasta')
+params.fasta     = getGenomeAttribute('fasta')
+params.fasta_fai = getGenomeAttribute('fasta_fai')
+params.intervals = getGenomeAttribute('intervals')
+params.gtf       = getGenomeAttribute('gtf')
+params.bed12     = getGenomeAttribute('bed12')
+
 
 include { QC                      } from './workflows/qc'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_qc_pipeline'

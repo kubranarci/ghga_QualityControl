@@ -106,15 +106,38 @@
                     "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a BWA index available this will be generated for you automatically. Combine with `--save_reference` to save BWA index for future runs.",
                     "fa_icon": "far fa-file-code"
                 },
-                "fai": {
+                "fasta_fai": {
                     "type": "string",
+                    "fa_icon": "fas fa-file",
                     "format": "file-path",
                     "exists": true,
-                    "pattern": "^\\S+\\.fai$",
                     "mimetype": "text/plain",
-                    "description": "Path to FAI genome file.",
-                    "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a BWA index available this will be generated for you automatically. Combine with `--save_reference` to save BWA index for future runs.",
-                    "fa_icon": "far fa-file-code"
+                    "help_text": "> **NB** If none provided, will be generated automatically from the FASTA reference.",
+                    "description": "Path to FASTA reference index."
+                },
+                "bed12": {
+                    "type": "string",
+                    "fa_icon": "fas fa-file",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/plain",
+                    "help_text": "Path to GENE BED12 file",
+                    "description": "Path to GENE BED12 file."
+                },
+                "gtf": {
+                    "type": "string",
+                    "fa_icon": "fas fa-file",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/plain",
+                    "help_text": "Path to GENE GTF file",
+                    "description": "Path to GENE GTF file."
+                },
+                "intervals": {
+                    "type": "string",
+                    "fa_icon": "fas fa-file-alt",
+                    "help_text": "Path to target bed file in case of whole exome or targeted sequencing or intervals file.",
+                    "description": "Path to target bed file in case of whole exome or targeted sequencing or intervals file."
                 },
                 "igenomes_ignore": {
                     "type": "boolean",
