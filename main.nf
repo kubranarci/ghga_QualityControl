@@ -1,9 +1,9 @@
 #!/usr/bin/env nextflow
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    GHGA/qc
+    ghga-de/qcmetrics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/GHGA/qc
+    Github : https://github.com/ghga-de/qcmetrics
 ----------------------------------------------------------------------------------------
 */
 
@@ -20,7 +20,7 @@ params.gtf       = getGenomeAttribute('gtf')
 params.bed12     = getGenomeAttribute('bed12')
 
 
-include { QC                      } from './workflows/qc'
+include { QCMETRICS               } from './workflows/qcmetrics'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_qc_pipeline'
 include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_qc_pipeline'
 
@@ -44,7 +44,7 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_qc_p
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow GHGA_QC {
+workflow GHGA_QCMETRICS {
 
     take:
     samplesheet // channel: samplesheet read in from --input
@@ -54,11 +54,11 @@ workflow GHGA_QC {
     //
     // WORKFLOW: Run pipeline
     //
-    QC (
+    QCMETRICS (
         samplesheet
     )
     emit:
-    multiqc_report = QC.out.multiqc_report // channel: /path/to/multiqc_report.html
+    multiqc_report = QCMETRICS.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,7 +84,7 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    GHGA_QC (
+    GHGA_QCMETRICS (
         PIPELINE_INITIALISATION.out.samplesheet
     )
     //
@@ -96,7 +96,7 @@ workflow {
         params.plaintext_email,
         params.outdir,
         params.monochrome_logs,
-        GHGA_QC.out.multiqc_report
+        GHGA_QCMETRICS.out.multiqc_report
     )
 }
 

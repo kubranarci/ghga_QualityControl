@@ -1,7 +1,7 @@
-# GHGA/qc
+# ghga-de/QCMetrics Nextflow Pipeline
 
 [![GitHub Actions CI Status](https://github.com/GHGA/qc/actions/workflows/nf-test.yml/badge.svg)](https://github.com/GHGA/qc/actions/workflows/nf-test.yml)
-[![GitHub Actions Linting Status](https://github.com/GHGA/qc/actions/workflows/linting.yml/badge.svg)](https://github.com/GHGA/qc/actions/workflows/linting.yml)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
+[![GitHub Actions Linting Status](https://github.com/GHGA/qc/actions/workflows/linting.yml/badge.svg)](https://github.com/GHGA/qc/actions/workflows/linting.yml)
 [![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
 
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A524.10.5-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
@@ -9,90 +9,104 @@
 [![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
 [![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
 
+<p align="center">
+    <img title="GHGA_logo" src="docs/GHGA_short_Logo_orange.png" width=50%>
+</p>
+
 ## Introduction
 
-**GHGA/qc** is a bioinformatics pipeline that performs basic quality conter over input dataset without any processing. The input datatype can be 1- raw fastq file(s), 2- aligned bam/cram file(s) and 3- variant called vcf/bcf(.gz) file(s)
+**ghga-de/QCMetrics** is a bioinformatics pipeline that performs basic quality control over input datasets without altering the raw data. It accepts three main input types:
+1. Raw FastQ files
+2. Aligned BAM/CRAM files
+3. Variant called VCF/BCF files
 
-According to file type (fastq,bam/cram,vcf/bcf) and method of the analysis ( wgs, wes, tes, rna, atacseq, chipseq, methylseq, smrnaseq, nanopore, pacbio) pipeline applies the applicable QC tools and reports in MultiQC report.
+The pipeline automatically selects the appropriate quality control tools based on your provided analysis method (e.g., WGS, RNA-Seq, Nanopore) and compiles the results into a single MultiQC report.
 
-1. Read QC
-   - ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
+## Tool & Analysis Matrix
 
-2. Alignmnet QC
-   - ([`FastP`](https://academic.oup.com/bioinformatics/article/34/17/i884/5093234))
+The following table details which tools are executed based on the analysis method and input data type provided in the samplesheet.
 
-   - ([`FastPlong`](https://academic.oup.com/bioinformatics/article/34/17/i884/5093234))
+| Analysis Method | Read QC (FastQ) | Alignment QC (BAM/CRAM) | Variant QC (VCF) |
+| :--- | :--- | :--- | :--- |
+| **WGS / WES / TES** | FastQC, FastP, SeqFU | Mosdepth, Samtools Stats, Picard, VerifyBamID, NGS-Bits* | BCFTools Stats |
+| **ATAC / ChIP-Seq** | FastQC, FastP, SeqFU | Mosdepth, Samtools Stats, Picard | BCFTools Stats |
+| **RNA-Seq / smRNA** | FastQC, FastP, SeqFU | RSeQC | BCFTools Stats |
+| **Nanopore** | FastQC, NanoPlot | - | BCFTools Stats |
+| **PacBio** | FastPLong | - | BCFTools Stats |
+| **MethylSeq** | FastQC, FastP, SeqFU | - | BCFTools Stats |
 
-   - ([`Samtools`](https://pubmed.ncbi.nlm.nih.gov/19505943/))
-
-   - ([`Mosdepth`](https://academic.oup.com/bioinformatics/article/34/5/867/4583630))
-
-   - ([`NanoPlot`](https://github.com/wdecoster/NanoPlot))
-
-   - ([`RSeQC`](http://rseqc.sourceforge.net/))
-
-   Predict Gender
-   - ([`NGS-Bits SampleGender`](https://github.com/imgag/ngs-bits))
-
-3. Variant QC
-   - ([`Bcftools`](https://pubmed.ncbi.nlm.nih.gov/21903627/))
-
-4. Report united QC for all tools
-   - ([`MultiQC`](http://multiqc.info/))
+> \* *NGS-Bits SampleGender is run for WGS if `predict_sex` is enabled.*
 
 ## Usage
 
-> [!NOTE]
-> If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` before running the workflow on actual data.
+### 1. Prepare Samplesheet
 
-<!-- TODO nf-core: Describe the minimum required steps to execute the pipeline, e.g. how to prepare samplesheets.
-     Explain what rows and columns represent. For instance (please edit as appropriate):
+You must create a `samplesheet.csv` containing your input data. The structure requires a `step` column to tell the pipeline which type of file you are providing:
+* **step 1**: FastQ files (Read QC)
+* **step 2**: BAM/CRAM files (Alignment QC)
+* **step 3**: VCF files (Variant QC)
 
-First, prepare a samplesheet with your input data that looks as follows:
-
-`samplesheet.csv`:
+**Example `samplesheet.csv`:**
 
 ```csv
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
+sample,fastq_1,fastq_2,bam,vcf
+SAMPLE_A,read1.fq.gz,read2.fq.gz,,
+SAMPLE_A,read1.fq.gz,read2.fq.gz,,
+SAMPLE_B,read1.fq.gz,,,
+SAMPLE_C,,,aligned.bam,
+SAMPLE_D,,,,variants.vcf.gz
 ```
 
-Each row represents a fastq file (single-end) or a pair of fastq files (paired end).
+### 2. Run the Pipeline
 
--->
-
-Now, you can run the pipeline using:
-
-<!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
+Run the pipeline using the command below. Ensure you specify the correct method (e.g., `wgs`, `rna`, `wes`) so the pipeline loads the correct tools.
 
 ```bash
-nextflow run GHGA/qc \
-   -profile <docker/singularity/.../institute> \
+nextflow run main.nf \
+   -profile docker/singularity/conda \
    --input samplesheet.csv \
-   --outdir <OUTDIR>
+   --method wgs \
+   --outdir ./results
 ```
 
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).
 
+## Supported Tools
+
+### Read QC
+* [**FastQC**](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/): Comprehensive quality control checks on raw sequence data.
+* [**FastP**](https://github.com/OpenGene/fastp): All-in-one FASTQ preprocessor (used here for QC metrics).
+* [**SeqFU**](https://telatin.github.io/seqfu2/tools/metadata.html): Sequence statstics
+* [**NanoPlot**](https://github.com/wdecoster/NanoPlot): Plotting tool for long read sequencing data and alignments.
+* [**FastPLong**](https://github.com/OpenGene/fastplong): Quality control for long read data (PacBio).
+
+### Alignment QC
+* [**Mosdepth**](https://github.com/brentp/mosdepth): Fast BAM/CRAM depth calculation.
+* [**Samtools Stats**](http://www.htslib.org/doc/samtools.html): General statistics for alignment files.
+* [**Picard CollectMultipleMetrics**](https://broadinstitute.github.io/picard/): Collects multiple classes of metrics from alignment files.
+* [**RSeQC**](http://rseqc.sourceforge.net/): Quality control for RNA-seq experiments.
+* [**NGS-Bits SampleGender**](https://github.com/imgag/ngs-bits): Sex determination based on coverage.
+* [**VerifyBamID**](https://github.com/Griffan/VerifyBamID): A robust tool for DNA contamination estimation from sequence reads using ancestry-agnostic method.
+
+### Variant QC
+* [**BCFTools Stats**](http://samtools.github.io/bcftools/bcftools.html): Statistics for VCF/BCF files.
+
+### Reporting
+* [**MultiQC**](http://multiqc.info/): Aggregates results from all tools into a single HTML report.
+
 ## Credits
 
-GHGA/qc was originally written by @kubranarci.
+ghga-de/QCMetrics was originally written by @kubranarci.
 
 We thank the following people for their extensive assistance in the development of this pipeline:
 
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
 
 ## Contributions and Support
 
 If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md).
 
 ## Citations
-
-<!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
-<!-- If you use GHGA/qc for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
-
-<!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
 
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
 

@@ -1,8 +1,8 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://raw.githubusercontent.com/GHGA/qc/master/nextflow_schema.json",
-    "title": "GHGA/qc pipeline parameters",
-    "description": "Grand Quality Control nextflow pipeline for GHGA datasets ",
+    "title": "ghga-de/qcmetrics pipeline parameters",
+    "description": "Quality Control nextflow pipeline for GHGA datasets reporting QC metrics and generating a MultiQC report.",
     "type": "object",
     "$defs": {
         "input_output_options": {
@@ -56,6 +56,15 @@
                     "help_text": "The pipeline applies necessary quality control steps necessary for this sequencer type",
                     "enum": ["illumina", "pacbio", "nanopore"]
                 },
+                "skip_tools":{
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["fastqc","fastp","fastplong", "seqfu", "picard_collectmultiplemetrics", "preseq", "mosdepth", "nanoplot", "samtools_stats", "bcftools_stats", "verifybamid", "rseqc"]
+                    },
+                    "description": "Tools to skip when running the pipeline.",
+                    "help_text": "If you want to skip any of the tools in the pipeline, you can specify them here. This is an array parameter, so you can specify multiple tools to skip."
+                },
                 "predict_sex": {
                     "type": "boolean",
                     "default": "false",
@@ -69,6 +78,13 @@
                     "description": "Method selection for ngs-bits samplegender",
                     "fa_icon": "fas fa-align-center",
                     "enum": ["xy", "hetx", "sry"]
+                },
+                "run_contamination_estimation": {
+                    "type": "boolean",
+                    "default": "false",
+                    "fa_icon": "fas fa-play",
+                    "description": "Run sample contamination estimation with VerifyBamID.",
+                    "help_text": "Run sample contamination estimation with VerifyBamID. This requires a reference VCF file to be provided with the `--refvcf` parameter."
                 },
                 "email": {
                     "type": "string",
@@ -138,6 +154,16 @@
                     "fa_icon": "fas fa-file-alt",
                     "help_text": "Path to target bed file in case of whole exome or targeted sequencing or intervals file.",
                     "description": "Path to target bed file in case of whole exome or targeted sequencing or intervals file."
+                },
+                "refvcf": {
+                    "type": "string",
+                    "fa_icon": "fas fa-file",
+                    "format": "file-path",
+                    "pattern": "^\\S+\\.vcf(\\.gz)?$",
+                    "exists": true,
+                    "mimetype": "text/plain",
+                    "help_text": "Path to reference VCF file for use in sample contamination estimation with VerifyBamID.",
+                    "description": "The input VCF file contains (1) external genotype information and/or (2) allele frequency information as AF entry or AC/AN entries in the INFO field."
                 },
                 "igenomes_ignore": {
                     "type": "boolean",

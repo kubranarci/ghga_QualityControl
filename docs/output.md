@@ -1,4 +1,4 @@
-# GHGA/qc: Output
+# ghga-de/qcmetrics: Output
 
 ## Introduction
 

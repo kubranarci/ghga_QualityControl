@@ -9,7 +9,6 @@ include { NANOPLOT               } from '../modules/nf-core/nanoplot/main'
 include { SAMTOOLS_FASTQ         } from '../modules/nf-core/samtools/fastq/main'
 include { FASTPLONG              } from '../modules/nf-core/fastplong/main'
 include { MOSDEPTH               } from '../modules/nf-core/mosdepth/main'
-include { PICARD_COLLECTMULTIPLEMETRICS } from '../modules/nf-core/picard/collectmultiplemetrics/main'
 include { SAMTOOLS_STATS         } from '../modules/nf-core/samtools/stats/main'
 include { TABIX_TABIX            } from '../modules/nf-core/tabix/tabix/main'
 include { BCFTOOLS_STATS         } from '../modules/nf-core/bcftools/stats/main'
@@ -17,10 +16,14 @@ include { RSEQC_BAMSTAT          } from '../modules/nf-core/rseqc/bamstat/main'
 include { SAMTOOLS_FAIDX         } from '../modules/nf-core/samtools/faidx/main'
 include { NGSBITS_SAMPLEGENDER   } from '../modules/nf-core/ngsbits/samplegender/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
+include { SEQFU_STATS            } from '../modules/nf-core/seqfu/stats/main'
+include { PRESEQ_LCEXTRAP        } from '../modules/nf-core/preseq/lcextrap/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_qc_pipeline'
+include { PICARD_COLLECTMULTIPLEMETRICS } from '../modules/nf-core/picard/collectmultiplemetrics/main'
+include { VERIFYBAMID_VERIFYBAMID       } from '../modules/nf-core/verifybamid/verifybamid/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,7 +31,7 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_qc_p
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-workflow QC {
+workflow QCMETRICS {
 
     take:
     ch_samplesheet // channel: samplesheet read in from --input
@@ -47,6 +50,8 @@ workflow QC {
                                          : Channel.empty()
     ch_bed12       = params.bed12     ? Channel.fromPath(params.bed12, checkIfExists: true).map{ bed12 -> tuple([id: bed12.getSimpleName()], bed12) }.collect()
                                          : Channel.empty()
+    ch_refvcf      = params.refvcf    ? Channel.fromPath(params.refvcf, checkIfExists: true).collect()
+                                         : Channel.empty()
 
     // create empty channels for versions and multiqc files
     ch_versions = Channel.empty()
@@ -63,35 +68,52 @@ workflow QC {
     // step1: check fastq files
 
     if (params.method in ["wgs", "wes", "tes", "atacseq", "chipseq", "rna", "nanopore", "smrnaseq", "methylseq"]){
+        
         // Runs FASTQC if samplesheet has fastq files
-        FASTQC (
-            samplesheet.step1
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
-        ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+        if (!params.skip_tools?.contains('fastqc')) {
+            FASTQC (
+                samplesheet.step1
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
+            ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+        }
 
         // Runs FASTP if samplesheet has fastq files
-        save_trimmed_fail = false
-        save_merged = false
-        FASTP (
-            samplesheet.step1,
-            [],
-            false,
-            save_trimmed_fail,
-            save_merged
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect { _meta, json -> json })
-        ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.html.collect { _meta, html -> html })
-        ch_versions = ch_versions.mix(FASTP.out.versions)
+        if (!params.skip_tools?.contains('fastp')) {
+            save_trimmed_fail = false
+            save_merged = false
+            FASTP (
+                samplesheet.step1,
+                [],
+                false,
+                save_trimmed_fail,
+                save_merged
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect { _meta, json -> json })
+            ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.html.collect { _meta, html -> html })
+            ch_versions = ch_versions.mix(FASTP.out.versions)
+        }
+
+        // Runs SEQFU_STATS if samplesheet has fastq files
+        if (!params.skip_tools?.contains('seqfu')) {
+            SEQFU_STATS(
+                samplesheet.step1
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(SEQFU_STATS.out.multiqc.collect { _meta, file -> file }.collect())
+            ch_versions = ch_versions.mix(SEQFU_STATS.out.versions)
+        }
     }
+    
     if (params.method in ["nanopore"]){
-        // Runs FASTQC if samplesheet has fastq files
-        NANOPLOT (
-            samplesheet.step1
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(NANOPLOT.out.txt.collect{it[1]})
-        ch_multiqc_files = ch_multiqc_files.mix(NANOPLOT.out.log.collect{it[1]})
-        ch_versions = ch_versions.mix(NANOPLOT.out.versions)
+        // Runs NANOPLOT if samplesheet has fastq files
+        if (!params.skip_tools?.contains('nanoplot')) {
+            NANOPLOT (
+                samplesheet.step1
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(NANOPLOT.out.txt.collect{it[1]})
+            ch_multiqc_files = ch_multiqc_files.mix(NANOPLOT.out.log.collect{it[1]})
+            ch_versions = ch_versions.mix(NANOPLOT.out.versions)
+        }
     }
 
     if (params.method in ["pacbio"]){
@@ -105,15 +127,17 @@ workflow QC {
         ch_versions = ch_versions.mix(SAMTOOLS_FASTQ.out.versions)
 
         // Run fastplong for pacbio samples
-        FASTPLONG(
-            SAMTOOLS_FASTQ.out.other.mix(samplesheet.step1),
-            [],
-            false,
-            false
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(FASTPLONG.out.json.collect { _meta, json -> json })
-        ch_multiqc_files = ch_multiqc_files.mix(FASTPLONG.out.html.collect { _meta, html -> html })
-        ch_versions = ch_versions.mix(FASTPLONG.out.versions)
+        if (!params.skip_tools?.contains('fastplong')) {
+            FASTPLONG(
+                SAMTOOLS_FASTQ.out.other.mix(samplesheet.step1),
+                [],
+                false,
+                false
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(FASTPLONG.out.json.collect { _meta, json -> json })
+            ch_multiqc_files = ch_multiqc_files.mix(FASTPLONG.out.html.collect { _meta, html -> html })
+            ch_versions = ch_versions.mix(FASTPLONG.out.versions)
+        }
     }
 
     // step2: check bam/cram files
@@ -130,52 +154,83 @@ workflow QC {
             ch_fai = SAMTOOLS_FAIDX.out.fai
             ch_versions = ch_versions.mix(SAMTOOLS_FAIDX.out.versions)
         }
+        
         // Runs MOSDEPTH if samplesheet has bam/cram files
-
-        if (params.method in ["wes", "tes", "atacseq", "chipseq"]){
-            samplesheet.step2.combine(ch_intervals)
-                                .map{meta, file, index, _meta2, intervals -> tuple(meta, file, index, intervals) }
+        if (!params.skip_tools?.contains('mosdepth')) {
+            if (params.method in ["wes", "tes", "atacseq", "chipseq"]){
+                samplesheet.step2.combine(ch_intervals)
+                                    .map{meta, file, index, _meta2, intervals -> tuple(meta, file, index, intervals) }
+                                    .set{ch_mosdepth}
+            }
+            else{
+                samplesheet.step2
+                                .map{meta, file, index -> tuple(meta, file, index, []) }
                                 .set{ch_mosdepth}
+            }
+            MOSDEPTH(
+                ch_mosdepth,
+                ch_fasta
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(MOSDEPTH.out.global_txt.map { _meta, file -> file }.collect())
+            ch_multiqc_files = ch_multiqc_files.mix(MOSDEPTH.out.regions_txt.map { _meta, file -> file }.collect())
+            ch_versions = ch_versions.mix(MOSDEPTH.out.versions)
         }
-        else{
-            samplesheet.step2
-                            .map{meta, file, index -> tuple(meta, file, index, []) }
-                            .set{ch_mosdepth}
-        }
-        MOSDEPTH(
-            ch_mosdepth,
-            ch_fasta
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(MOSDEPTH.out.global_txt.map { _meta, file -> file }.collect())
-        ch_multiqc_files = ch_multiqc_files.mix(MOSDEPTH.out.regions_txt.map { _meta, file -> file }.collect())
-        ch_versions = ch_versions.mix(MOSDEPTH.out.versions)
 
         // Runs SAMTOOLS_STATS if samplesheet has bam/cram files
-        SAMTOOLS_STATS(
-            samplesheet.step2,
-            ch_fasta
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_STATS.out.stats.map { _meta, file -> file }.collect())
-        ch_versions = ch_versions.mix(SAMTOOLS_STATS.out.versions)
+        if (!params.skip_tools?.contains('samtools_stats')) {
+            SAMTOOLS_STATS(
+                samplesheet.step2,
+                ch_fasta
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(SAMTOOLS_STATS.out.stats.map { _meta, file -> file }.collect())
+            ch_versions = ch_versions.mix(SAMTOOLS_STATS.out.versions)
+        }
 
         // Runs PICARD_COLLECTMULTIPLEMETRICS if samplesheet has bam/cram files
-        PICARD_COLLECTMULTIPLEMETRICS(
-            samplesheet.step2,
-            ch_fasta,
-            ch_fai
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(PICARD_COLLECTMULTIPLEMETRICS.out.metrics.map { _meta, file -> file }.collect())
-        ch_versions = ch_versions.mix(PICARD_COLLECTMULTIPLEMETRICS.out.versions)
+        if (!params.skip_tools?.contains('picard_collectmultiplemetrics')) {
+            PICARD_COLLECTMULTIPLEMETRICS(
+                samplesheet.step2,
+                ch_fasta,
+                ch_fai
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(PICARD_COLLECTMULTIPLEMETRICS.out.metrics.map { _meta, file -> file }.collect())
+            ch_versions = ch_versions.mix(PICARD_COLLECTMULTIPLEMETRICS.out.versions)
+        }
 
+        if (params.run_contamination_estimation && ch_refvcf){
+            // Runs VERIFYBAMID_VERIFYBAMID if samplesheet has bam/cram files and if reference vcf is given
+            if (!params.skip_tools?.contains('verifybamid')) {
+                VERIFYBAMID_VERIFYBAMID(
+                    samplesheet.step2,
+                    ch_refvcf     
+                )
+                ch_multiqc_files = ch_multiqc_files.mix(VERIFYBAMID_VERIFYBAMID.out.selfsm.map { _meta, file -> file }.collect())
+                ch_multiqc_files = ch_multiqc_files.mix(VERIFYBAMID_VERIFYBAMID.out.depthsm.map { _meta, file -> file }.collect())
+                ch_multiqc_files = ch_multiqc_files.mix(VERIFYBAMID_VERIFYBAMID.out.selfrg.map { _meta, file -> file }.collect())
+                ch_multiqc_files = ch_multiqc_files.mix(VERIFYBAMID_VERIFYBAMID.out.depthrg.map { _meta, file -> file }.collect())
+                ch_multiqc_files = ch_multiqc_files.mix(VERIFYBAMID_VERIFYBAMID.out.bestsm.map { _meta, file -> file }.collect())
+                ch_multiqc_files = ch_multiqc_files.mix(VERIFYBAMID_VERIFYBAMID.out.log.map { _meta, file -> file }.collect())
+                ch_versions = ch_versions.mix(VERIFYBAMID_VERIFYBAMID.out.versions)
+            }
+        }
+    }
+
+    // Runs PRESEQ_LCEXTRAP if samplesheet has bam/cram files
+    if (!params.skip_tools?.contains('preseq')) {
+        PRESEQ_LCEXTRAP(
+            samplesheet.step2
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(PRESEQ_LCEXTRAP.out.lc_extrap.map { _meta, file -> file }.collect())
     }
 
     if (params.method.contains("rna")){
-        RSEQC_BAMSTAT(
-            samplesheet.step2
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(RSEQC_BAMSTAT.out.txt.map { _meta, file -> file }.collect())
-        ch_versions = ch_versions.mix(RSEQC_BAMSTAT.out.versions)
-
+        if (!params.skip_tools?.contains('rseqc')) {
+            RSEQC_BAMSTAT(
+                samplesheet.step2
+            )
+            ch_multiqc_files = ch_multiqc_files.mix(RSEQC_BAMSTAT.out.txt.map { _meta, file -> file }.collect())
+            ch_versions = ch_versions.mix(RSEQC_BAMSTAT.out.versions)
+        }
     }
 
     if (params.predict_sex && params.method.contains("wgs") ){
@@ -205,16 +260,19 @@ workflow QC {
     samples = [[],[]]
     exons   = [[],[]]
 
-    BCFTOOLS_STATS(
-        samplesheet.step3.join(TABIX_TABIX.out.tbi),
-        regions,
-        targets,
-        samples,
-        exons,
-        ch_fasta
-    )
-    ch_multiqc_files = ch_multiqc_files.mix(BCFTOOLS_STATS.out.stats.map { _meta, file -> file }.collect())
-    ch_versions = ch_versions.mix(BCFTOOLS_STATS.out.versions)
+    if (!params.skip_tools?.contains('bcftools_stats')) {
+        BCFTOOLS_STATS(
+            samplesheet.step3.join(TABIX_TABIX.out.tbi),
+            regions,
+            targets,
+            samples,
+            exons,
+            ch_fasta
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(BCFTOOLS_STATS.out.stats.map { _meta, file -> file }.collect())
+        ch_versions = ch_versions.mix(BCFTOOLS_STATS.out.versions)
+    }
+
 
     //TODO: ADD A TOOL TO PREDICT CONTAMINATIONS BTW SOMATIC AND NORMAL CELLS
 
