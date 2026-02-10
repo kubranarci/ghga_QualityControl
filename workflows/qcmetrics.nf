@@ -223,6 +223,7 @@ workflow QCMETRICS {
         ch_multiqc_files = ch_multiqc_files.mix(PRESEQ_LCEXTRAP.out.lc_extrap.map { _meta, file -> file }.collect())
     }
 
+    // Runs RSEQC_BAMSTAT if samplesheet has bam/cram files and method is rna
     if (params.method.contains("rna")){
         if (!params.skip_tools?.contains('rseqc')) {
             RSEQC_BAMSTAT(
@@ -235,7 +236,7 @@ workflow QCMETRICS {
 
     if (params.predict_sex && params.method.contains("wgs") ){
 
-        // Predict sex of the samples if not given
+        // Predict sex of the samples if not given and if samplesheet has bam/cram files
         NGSBITS_SAMPLEGENDER(
             samplesheet.step2,
             ch_fasta,
@@ -276,6 +277,14 @@ workflow QCMETRICS {
 
     //TODO: ADD A TOOL TO PREDICT CONTAMINATIONS BTW SOMATIC AND NORMAL CELLS
 
+    // such a tool https://github.com/ghga-de/nf-snvcalling/blob/main/bin/PurityReloaded.py can be a nice addition
+    // but it is very old using pythoon2.7 plus it is hard-coded towards dkfz pipelines. If we want to use the logic we 
+    // have to rewrite it and make it more general. It can be added in the next version of the pipeline if there is a need for it.
+
+    // another tool would be a nice addition is https://github.com/ghga-de/nf-platypusindelcalling/blob/main/modules/local/sample_swap.nf
+    // can calculate sample swaps between tumor and normal samples based on vcf files. The tool is old and requires some work to
+
+    
     //
     // Collate and save software versions
     //
