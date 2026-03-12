@@ -22,9 +22,9 @@ ProcessDataFile linkage chain:
 
 Usage
 -----
-  python metadata_to_samplesheet.py --metadata metadata.json
-  python metadata_to_samplesheet.py --metadata metadata.json --output samplesheet.csv
-  python metadata_to_samplesheet.py --metadata metadata.json --input-directory /data/files
+  python metadata_to_samplesheet.py metadata.json
+  python metadata_to_samplesheet.py metadata.json --output samplesheet.csv
+  python metadata_to_samplesheet.py metadata.json --input-directory /data/files
 """
 
 import argparse
