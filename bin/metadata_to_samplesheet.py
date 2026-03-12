@@ -27,14 +27,14 @@ Usage
 -----
   python metadata_to_samplesheet.py metadata.json
   python metadata_to_samplesheet.py metadata.json --output samplesheet.csv
-  python metadata_to_samplesheet.py metadata.json --input-directory /data/files
+  python metadata_to_samplesheet.py metadata.json --input_directory /data/files
 """
 
 import argparse
 import csv
 import json
-import sys
 import os
+from collections import Counter
 from itertools import zip_longest
 from pathlib import Path
 
@@ -67,8 +67,8 @@ def get_method(exp_method: dict) -> str:
         return "nanopore"
     if instrument in PACBIO_INSTRUMENTS:
         return "pacbio"
-    library_type = exp_method.get("library_type", "")
-    return LIBRARY_TYPE_MAP.get(library_type, "wgs")
+    library_type = exp_method.get("library_type", "").strip().upper()
+    return LIBRARY_TYPE_MAP.get(library_type, "unknown")
 
 
 def get_analysis_method(analysis_method_record: dict) -> str:
@@ -221,9 +221,9 @@ def classify_files(files: list[dict], input_directory: str) -> dict[str, list]:
         fmt  = str(f.get("format", "")).upper()
         low  = name.lower()
 
-        if fmt in ("FASTQ", "FAST5", "FASTA", "UBAM") or low.endswith(
-            (".fastq.gz", ".fq.gz", ".fastq", ".fq", ".fast5", ".fasta")
-        ):
+        if fmt == "FASTQ" or low.endswith((".fastq.gz", ".fq.gz", ".fastq", ".fq")):
+
+            # Only schema-allowed FASTQ format goes into fastq buckets.
             # Use technical_replicate when it explicitly says 2 (definitive R2).
             # Otherwise fall back to filename patterns: _R2, _2.fastq, etc.
             # This handles cfDNA panels where replicate tracks library (both=1),
@@ -237,15 +237,18 @@ def classify_files(files: list[dict], input_directory: str) -> dict[str, list]:
 
         elif fmt == "BAI" or low.endswith(".bai"):
             buckets["bai"].append(path)
-        elif fmt in ("BAM", "SAM") or low.endswith(".bam"):
+        elif fmt == "BAM" or low.endswith(".bam"):
+            # SAM intentionally excluded: not a schema-allowed column
             buckets["bam"].append(path)
         elif fmt == "CRAI" or low.endswith(".crai"):
             buckets["crai"].append(path)
-        elif fmt in ("CRAM",) or low.endswith(".cram"):
+        elif fmt == "CRAM" or low.endswith(".cram"):
             buckets["cram"].append(path)
-        elif fmt in ("VCF", "BCF") or low.endswith((".vcf", ".vcf.gz", ".bcf")):
+        elif fmt == "VCF" or low.endswith((".vcf", ".vcf.gz")):
+            # BCF intentionally excluded: not a schema-allowed column
             buckets["vcf"].append(path)
         else:
+            # FAST5, FASTA, UBAM, SAM, BCF and any other non-schema formats
             buckets["other"].append(path)
 
     for key in buckets:
@@ -263,9 +266,9 @@ def buckets_to_rows(
     Expand classified file buckets into one or more file-row dicts.
     Each row carries exactly one file type (FASTQ pair, BAM+BAI, CRAM+CRAI, or VCF).
 
-    Returns None when no files exist in any bucket.
+    Returns None when no files exist in any bucket
     Single_end is derived from metadata (sequencing_layout).
-    When a paired-end experiment is missing its R2 file a warning is appended to `warnings`.
+    When a paired-end experiment is missing its R2 file a warning is appended to `warnings`
     """
     file_rows = []
 
@@ -277,11 +280,27 @@ def buckets_to_rows(
             )
         file_rows.append({"fastq_1": f1 or "", "fastq_2": f2 or "", "single_end": single_end})
 
-    for bam, bai in zip_longest(buckets["bam"], buckets["bai"]):
-        file_rows.append({"bam": bam or "", "bai": bai or "", "single_end": single_end})
+    def _stem(path: str) -> str:
+        """Strip directory and all extensions to get a bare basename for index matching."""
+        base = os.path.basename(path)
+        # Strip known multi-part extensions first (.vcf.gz, .fastq.gz, etc.)
+        for ext in (".bam", ".cram", ".bai", ".crai"):
+            if base.endswith(ext):
+                return base[: -len(ext)]
+        # Fall back to stripping whatever os.path.splitext finds
+        return os.path.splitext(base)[0]
 
-    for cram, crai in zip_longest(buckets["cram"], buckets["crai"]):
-        file_rows.append({"cram": cram or "", "crai": crai or "", "single_end": single_end})
+    # Build stem --> path maps for index files so BAM/CRAM can look up their index
+    bai_by_stem  = {_stem(p): p for p in buckets["bai"]}
+    crai_by_stem = {_stem(p): p for p in buckets["crai"]}
+
+    for bam in buckets["bam"]:
+        bai = bai_by_stem.get(_stem(bam), "")
+        file_rows.append({"bam": bam, "bai": bai, "single_end": single_end})
+
+    for cram in buckets["cram"]:
+        crai = crai_by_stem.get(_stem(cram), "")
+        file_rows.append({"cram": cram, "crai": crai, "single_end": single_end})
 
     for vcf in buckets["vcf"]:
         file_rows.append({"vcf": vcf, "single_end": single_end})
@@ -289,7 +308,8 @@ def buckets_to_rows(
     if buckets["other"] and not file_rows:
         file_rows.append({"data_files": ";".join(buckets["other"]), "single_end": single_end})
 
-    # Return None when no files are found
+    # Return None when no files were found so the caller can skip the row
+    # rather than writing a metadata-only row with no usable file inputs.
     if not file_rows:
         return None
 
@@ -328,46 +348,36 @@ def parse_metadata(metadata_path: str, input_directory: str) -> list[dict]:
         status = 1 if ("tumor" in disease_raw or "disease" in disease_raw) else 0
 
         ### Collect all files for this sample across all experiments and analyses.
-        
-        # Layout:
-        #   Pass 1 – loop experiments: collect raw files + resolve per-experiment
-        #            method metadata; collect PDFs per analysis alias.
-        #   Pass 2 – merge unique raw files and all PDFs into a single flat list.
-        #   Pass 3 – classify + emit rows once, with a single lane counter.
+        ### Each file is tagged with its own provenance (exp_method_name,
+        ### ana_method_name, single_end) captured at the point of collection so
+        ### earlier files are never overwritten by later loop iterations.
+        ### Files are deduplicated by name across the whole sample.
 
+        # Each entry: (file_record, exp_method_name, ana_method_name, single_end)
         sample_files: list[tuple[dict, str, str, str]] = []
         seen_names: set[str] = set()
-
-        sample_single_end      = "false"
-        sample_exp_method_name = "wgs"
-        sample_ana_method_name = "unknown"
 
         for experiment in idx["sample_to_experiments"].get(sample_alias, []):
             exp_alias       = experiment.get("alias", "")
             em_alias        = experiment.get("experiment_method", "")
             exp_method      = idx["exp_methods"].get(em_alias, {})
-            exp_method_name = get_method(exp_method)
-            single_end      = get_single_end(exp_method)
+            exp_method_name = get_method(exp_method)      # captured for this experiment
+            single_end      = get_single_end(exp_method)  # captured for this experiment
 
-            sample_single_end      = single_end
-            sample_exp_method_name = exp_method_name
-
-            ### Raw files – add each only once across the whole sample
+            ### Raw files – tagged with this experiment's provenance
             for rdf in idx["exp_to_rdfs"].get(exp_alias, []):
                 name = rdf.get("name") or rdf.get("alias") or ""
                 if name and name not in seen_names:
                     seen_names.add(name)
-                    # Raw files carry no analysis method yet; resolved below
+                    # ana_method_name resolved below once all analyses are known
                     sample_files.append((rdf, exp_method_name, None, single_end))
 
-            ### Process files via each analysis – add each only once
+            ### Process files – tagged with their specific analysis provenance
             for analysis in idx["exp_to_analyses"].get(exp_alias, []):
                 analysis_alias  = analysis.get("alias", "")
                 am_alias        = analysis.get("analysis_method", "")
                 am_record       = idx["analysis_methods"].get(am_alias, {})
-                ana_method_name = get_analysis_method(am_record)
-
-                sample_ana_method_name = ana_method_name
+                ana_method_name = get_analysis_method(am_record)  # captured for this analysis
 
                 for pdf in idx["analysis_to_pdfs"].get(analysis_alias, []):
                     name = pdf.get("name") or pdf.get("alias") or ""
@@ -376,28 +386,35 @@ def parse_metadata(metadata_path: str, input_directory: str) -> list[dict]:
                         sample_files.append((pdf, exp_method_name, ana_method_name, single_end))
 
         if not sample_files:
-            context = f"{sample_alias}/no-files"
             warnings.append(
-                f"[{context}] no files found in any bucket — "
+                f"[{sample_alias}/no-files] no files found in any bucket — "
                 "skipping row to avoid writing a metadata-only entry."
             )
             continue
 
-        ### Resolve analysis_method for raw files: use the sample-level value
-        ### (all analyses on a sample are expected to share the same method;
-        ### if they differ the last one is used, which is consistent with above)
+        ### Resolve ana_method_name for raw files (am=None) using the most
+        ### common analysis method seen for this sample; ties broken by first seen.
+        ana_counts = Counter(
+            am for _, _, am, _ in sample_files if am is not None
+        )
+        dominant_ana_method = ana_counts.most_common(1)[0][0] if ana_counts else "unknown"
+
         resolved_files = [
-            (f, em, (am if am is not None else sample_ana_method_name), se)
+            (f, em, am if am is not None else dominant_ana_method, se)
             for f, em, am, se in sample_files
         ]
 
-        ### Classify all files into typed buckets (deduplication already done)
-        all_file_records = [f for f, _, _, _ in resolved_files]
+        ### Use provenance from the first file as the row-level method values.
+        ### Within a well-formed submission all files on a sample share the same
+        ### experiment/analysis method; if they differ the first value is used
+        ### and the per-file tags in resolved_files remain available for future use.
+        _, row_exp_method, row_ana_method, row_single_end = resolved_files[0]
 
-        # Use first file's provenance for single_end (consistent within sample)
-        buckets  = classify_files(all_file_records, input_directory)
-        context  = f"{sample_alias}"
-        file_rows = buckets_to_rows(buckets, sample_single_end, warnings, context)
+        ### Classify and emit once — single lane counter for the whole sample
+        all_file_records = [f for f, _, _, _ in resolved_files]
+        context   = sample_alias
+        buckets   = classify_files(all_file_records, input_directory)
+        file_rows = buckets_to_rows(buckets, row_single_end, warnings, context)
 
         if file_rows is None:
             warnings.append(
@@ -406,8 +423,6 @@ def parse_metadata(metadata_path: str, input_directory: str) -> list[dict]:
             )
             continue
 
-        ### Assemble one output row per file group, lane counter is
-        ### sample-scoped so it runs L001…LN without resetting
         base = {
             "sample":               sample_alias,
             "individual_id":        individual_id,
@@ -418,8 +433,8 @@ def parse_metadata(metadata_path: str, input_directory: str) -> list[dict]:
             "disease_status":       sample.get("disease_or_healthy", ""),
             "case_control_status":  sample.get("case_control_status", ""),
             "tissue":               sample.get("biospecimen_tissue_term", ""),
-            "experiment_method":    sample_exp_method_name,
-            "analysis_method":      sample_ana_method_name,
+            "experiment_method":    row_exp_method,
+            "analysis_method":      row_ana_method,
         }
 
         for lane_num, frow in enumerate(file_rows, start=1):
@@ -427,6 +442,7 @@ def parse_metadata(metadata_path: str, input_directory: str) -> list[dict]:
             rows.append(row)
 
     if warnings:
+        import sys
         print(f"\n{len(warnings)} validation warning(s):", file=sys.stderr)
         for w in warnings:
             print(f"  WARNING: {w}", file=sys.stderr)
@@ -443,11 +459,11 @@ ALL_COLUMNS = [
     "sample_type", "disease_status", "case_control_status", "tissue",
     "experiment_method", "analysis_method",
     "fastq_1", "fastq_2", "single_end",
-    "bam", "bai", "cram", "crai", "vcf", "data_files"
+    "bam", "bai", "cram", "crai", "vcf", "data_files",
 ]
 
-# Columns whose string value "true"/"false" must be written as a JSON boolean
-# to satisfy the schema's  "type": "boolean"  constraint on single_end.
+# Columns that must be written as lowercase "true"/"false" strings to match
+# checked-in samplesheets and satisfy the schema's "type": "boolean" constraint.
 _BOOL_COLUMNS = {"single_end"}
 
 
@@ -460,10 +476,10 @@ def write_samplesheet(rows: list[dict], output_path: str):
             for col in ALL_COLUMNS:
                 val = row.get(col, "")
                 if col in _BOOL_COLUMNS and val != "":
-                    # Schema requires boolean, not the string "true"/"false"
-                    val = str(val).lower() == "true"
+                    val = "true" if str(val).lower() == "true" else "false"
                 out[col] = val
             writer.writerow(out)
+
 
 #############
 #### CLI ####
