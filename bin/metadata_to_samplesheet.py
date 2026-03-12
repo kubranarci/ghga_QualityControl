@@ -33,6 +33,7 @@ Usage
 import argparse
 import csv
 import json
+import sys
 import os
 from itertools import zip_longest
 from pathlib import Path
@@ -262,13 +263,9 @@ def buckets_to_rows(
     Expand classified file buckets into one or more file-row dicts.
     Each row carries exactly one file type (FASTQ pair, BAM+BAI, CRAM+CRAI, or VCF).
 
-    Returns None when no files exist in any bucket so the caller can skip the
-    sample entirely rather than writing an unusable metadata-only row.
-
-    single_end is derived from metadata (sequencing_layout) and is never
-    overridden based on file presence.  When a paired-end experiment is missing
-    its R2 file a warning is appended to `warnings` so the caller can surface it
-    rather than silently treating the read as single-end.
+    Returns None when no files exist in any bucket.
+    Single_end is derived from metadata (sequencing_layout).
+    When a paired-end experiment is missing its R2 file a warning is appended to `warnings`.
     """
     file_rows = []
 
@@ -292,8 +289,7 @@ def buckets_to_rows(
     if buckets["other"] and not file_rows:
         file_rows.append({"data_files": ";".join(buckets["other"]), "single_end": single_end})
 
-    # Return None when no files were found so the caller can skip the row
-    # rather than writing a metadata-only row with no usable file inputs.
+    # Return None when no files are found
     if not file_rows:
         return None
 
@@ -331,74 +327,106 @@ def parse_metadata(metadata_path: str, input_directory: str) -> list[dict]:
         disease_raw = str(sample.get("disease_or_healthy", "")).lower()
         status = 1 if ("tumor" in disease_raw or "disease" in disease_raw) else 0
 
-        ### Experiment + ExperimentMethod
-        ### Iterate over every experiment for this sample so that multiple
-        ### sequencing runs are all represented in the samplesheet.
+        ### Collect all files for this sample across all experiments and analyses.
+        
+        # Layout:
+        #   Pass 1 – loop experiments: collect raw files + resolve per-experiment
+        #            method metadata; collect PDFs per analysis alias.
+        #   Pass 2 – merge unique raw files and all PDFs into a single flat list.
+        #   Pass 3 – classify + emit rows once, with a single lane counter.
+
+        sample_files: list[tuple[dict, str, str, str]] = []
+        seen_names: set[str] = set()
+
+        sample_single_end      = "false"
+        sample_exp_method_name = "wgs"
+        sample_ana_method_name = "unknown"
+
         for experiment in idx["sample_to_experiments"].get(sample_alias, []):
-            exp_alias  = experiment.get("alias", "")
-            em_alias   = experiment.get("experiment_method", "")
-            exp_method = idx["exp_methods"].get(em_alias, {})
-            # Normalised method name for workflow detection (e.g. "pacbio", "wgs")
+            exp_alias       = experiment.get("alias", "")
+            em_alias        = experiment.get("experiment_method", "")
+            exp_method      = idx["exp_methods"].get(em_alias, {})
             exp_method_name = get_method(exp_method)
             single_end      = get_single_end(exp_method)
 
-            ### ResearchDataFiles (raw reads) for this experiment
-            raw_files: list[dict] = list(idx["exp_to_rdfs"].get(exp_alias, []))
+            sample_single_end      = single_end
+            sample_exp_method_name = exp_method_name
 
-            ### Iterate over every analysis linked to this experiment.
-            ### Each analysis may produce different ProcessDataFiles and carry a
-            ### different analysis_method, so they expand into separate lane groups.
-            ### If there are no analyses, still emit the raw files on their own.
-            analyses_for_exp = idx["exp_to_analyses"].get(exp_alias, [])
-            analysis_loop = analyses_for_exp if analyses_for_exp else [{}]
+            ### Raw files – add each only once across the whole sample
+            for rdf in idx["exp_to_rdfs"].get(exp_alias, []):
+                name = rdf.get("name") or rdf.get("alias") or ""
+                if name and name not in seen_names:
+                    seen_names.add(name)
+                    # Raw files carry no analysis method yet; resolved below
+                    sample_files.append((rdf, exp_method_name, None, single_end))
 
-            for analysis in analysis_loop:
-                analysis_alias = analysis.get("alias", "")
-                am_alias       = analysis.get("analysis_method", "")
-                # Normalised analysis method name via AnalysisMethod.type
-                am_record      = idx["analysis_methods"].get(am_alias, {})
+            ### Process files via each analysis – add each only once
+            for analysis in idx["exp_to_analyses"].get(exp_alias, []):
+                analysis_alias  = analysis.get("alias", "")
+                am_alias        = analysis.get("analysis_method", "")
+                am_record       = idx["analysis_methods"].get(am_alias, {})
                 ana_method_name = get_analysis_method(am_record)
 
-                all_files = list(raw_files)
-                if analysis_alias:
-                    all_files.extend(idx["analysis_to_pdfs"].get(analysis_alias, []))
+                sample_ana_method_name = ana_method_name
 
-                buckets   = classify_files(all_files, input_directory)
-                context   = f"{sample_alias}/{exp_alias}/{analysis_alias or 'no-analysis'}"
-                file_rows = buckets_to_rows(buckets, single_end, warnings, context)
+                for pdf in idx["analysis_to_pdfs"].get(analysis_alias, []):
+                    name = pdf.get("name") or pdf.get("alias") or ""
+                    if name and name not in seen_names:
+                        seen_names.add(name)
+                        sample_files.append((pdf, exp_method_name, ana_method_name, single_end))
 
-                if file_rows is None:
-                    warnings.append(
-                        f"[{context}] no files found in any bucket — "
-                        "skipping row to avoid writing a metadata-only entry."
-                    )
-                    continue
+        if not sample_files:
+            context = f"{sample_alias}/no-files"
+            warnings.append(
+                f"[{context}] no files found in any bucket — "
+                "skipping row to avoid writing a metadata-only entry."
+            )
+            continue
 
-                ### Assemble one output row per file group
-                base = {
-                    "sample":                   sample_alias,
-                    "individual_id":            individual_id,
-                    "sex":                      sex,
-                    "status":                   status,
-                    "phenotype":                phenotype,
-                    "sample_type":              sample.get("type", ""),
-                    "disease_status":           sample.get("disease_or_healthy", ""),
-                    "case_control_status":      sample.get("case_control_status", ""),
-                    "tissue":                   sample.get("biospecimen_tissue_term", ""),
-                    # Normalised method names for workflow/QC metric detection
-                    "experiment_method":        exp_method_name,
-                    "analysis_method":          ana_method_name,
-                    # Original aliases for traceability
-                    "experiment_method_alias":  em_alias,
-                    "analysis_method_alias":    am_alias,
-                }
+        ### Resolve analysis_method for raw files: use the sample-level value
+        ### (all analyses on a sample are expected to share the same method;
+        ### if they differ the last one is used, which is consistent with above)
+        resolved_files = [
+            (f, em, (am if am is not None else sample_ana_method_name), se)
+            for f, em, am, se in sample_files
+        ]
 
-                for lane_num, frow in enumerate(file_rows, start=1):
-                    row = {**base, "lane": f"L{lane_num:03d}", **frow}
-                    rows.append(row)
+        ### Classify all files into typed buckets (deduplication already done)
+        all_file_records = [f for f, _, _, _ in resolved_files]
+
+        # Use first file's provenance for single_end (consistent within sample)
+        buckets  = classify_files(all_file_records, input_directory)
+        context  = f"{sample_alias}"
+        file_rows = buckets_to_rows(buckets, sample_single_end, warnings, context)
+
+        if file_rows is None:
+            warnings.append(
+                f"[{context}] no files found in any bucket — "
+                "skipping row to avoid writing a metadata-only entry."
+            )
+            continue
+
+        ### Assemble one output row per file group, lane counter is
+        ### sample-scoped so it runs L001…LN without resetting
+        base = {
+            "sample":               sample_alias,
+            "individual_id":        individual_id,
+            "sex":                  sex,
+            "status":               status,
+            "phenotype":            phenotype,
+            "sample_type":          sample.get("type", ""),
+            "disease_status":       sample.get("disease_or_healthy", ""),
+            "case_control_status":  sample.get("case_control_status", ""),
+            "tissue":               sample.get("biospecimen_tissue_term", ""),
+            "experiment_method":    sample_exp_method_name,
+            "analysis_method":      sample_ana_method_name,
+        }
+
+        for lane_num, frow in enumerate(file_rows, start=1):
+            row = {**base, "lane": f"L{lane_num:03d}", **frow}
+            rows.append(row)
 
     if warnings:
-        import sys
         print(f"\n{len(warnings)} validation warning(s):", file=sys.stderr)
         for w in warnings:
             print(f"  WARNING: {w}", file=sys.stderr)
@@ -415,7 +443,7 @@ ALL_COLUMNS = [
     "sample_type", "disease_status", "case_control_status", "tissue",
     "experiment_method", "analysis_method",
     "fastq_1", "fastq_2", "single_end",
-    "bam", "bai", "cram", "crai", "vcf", "data_files",
+    "bam", "bai", "cram", "crai", "vcf", "data_files"
 ]
 
 # Columns whose string value "true"/"false" must be written as a JSON boolean
@@ -436,7 +464,6 @@ def write_samplesheet(rows: list[dict], output_path: str):
                     val = str(val).lower() == "true"
                 out[col] = val
             writer.writerow(out)
-
 
 #############
 #### CLI ####
