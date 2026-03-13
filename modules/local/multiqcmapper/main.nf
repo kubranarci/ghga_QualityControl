@@ -22,8 +22,8 @@ process MULTIQCMAPPER {
     def args = task.ext.args ?: ''
     """
     multiqc-mapper resolve \\
-        $multiqc_data_dir \\
-        $concepts_yaml \\
+        "${multiqc_data_dir}" \\
+        "${concepts_yaml}" \\
         --output unified.tsv \\
         --format tsv \\
         $args
