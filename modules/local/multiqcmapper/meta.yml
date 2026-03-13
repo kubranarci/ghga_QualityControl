@@ -8,7 +8,7 @@ name: "multiqcmapper"
   tools:
     - multiqc-mapper:
         description: Maps MultiQC (anchor, metric) pairs to canonical concept names
-        homepage: "https://github.com/ghga-de/multiqc-mapper"
+        homepage: "https://github.com/MKoesters/multiqc-mapper"
         licence: ["MIT"]
 
   input:

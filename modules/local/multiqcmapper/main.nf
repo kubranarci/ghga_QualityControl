@@ -3,7 +3,9 @@ process MULTIQCMAPPER {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    container "multiqc-mapper:0.1.0"
+    container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container
+        ? 'docker://quay.io/mkoesters/multiqc_mapper:latest'
+        : 'quay.io/mkoesters/multiqc_mapper:latest'}"
 
     input:
     path multiqc_data_dir
