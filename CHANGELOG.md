@@ -9,6 +9,8 @@ Initial release of ghga-de/qcmetrics, created with the [nf-core](https://nf-co.r
 
 ### `Added`
 
+- Add `MULTIQCMAPPER` local module to produce a unified long-format QC metrics table from MultiQC output using [multiqc-mapper](https://github.com/ghga-de/multiqc-mapper). Enabled by passing `--concepts_yaml <path/to/concepts.yaml>` ([#](https://github.com/ghga-de/qcmetrics/issues/)).
+
 ### `Fixed`
 
 ### `Dependencies`
