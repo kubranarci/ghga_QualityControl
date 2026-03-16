@@ -3,23 +3,17 @@
     {
       "alias": "ind_1234",
       "sex": "MALE",
-      "phenotypic_features_terms": [
-        "Healthy"
-      ]
+      "phenotypic_features_terms": ["Healthy"]
     },
     {
       "alias": "ind_SAMPLE1",
       "sex": "FEMALE",
-      "phenotypic_features_terms": [
-        "Healthy"
-      ]
+      "phenotypic_features_terms": ["Healthy"]
     },
     {
       "alias": "ind_SAMPLE3",
       "sex": "FEMALE",
-      "phenotypic_features_terms": [
-        "Healthy"
-      ]
+      "phenotypic_features_terms": ["Healthy"]
     }
   ],
   "samples": [
@@ -56,6 +50,20 @@
       "biospecimen_tissue_term": "blood"
     }
   ],
+  "experiment_methods": [
+    {
+      "alias": "WGS",
+      "instrument_model": "ILLUMINA",
+      "library_type": "WGS",
+      "sequencing_layout": "PE"
+    }
+  ],
+  "analysis_methods": [
+    {
+      "alias": "VARCALL",
+      "type": "WGS"
+    }
+  ],
   "experiments": [
     {
       "alias": "exp_1234N",
@@ -78,80 +86,78 @@
       "experiment_method": "WGS"
     }
   ],
-  "analyses": [
-    {
-      "alias": "1234N",
-      "analysis_method": "VARCALL",
-      "research_data_files": [
-        "file_1234N_bam",
-        "file_1234N_bai",
-        "file_1234N_vcf"
-      ]
-    },
-    {
-      "alias": "1234T",
-      "analysis_method": "VARCALL",
-      "research_data_files": [
-        "file_1234T_bam",
-        "file_1234T_bai"
-      ]
-    },
-    {
-      "alias": "SAMPLE1_PE",
-      "analysis_method": "VARCALL",
-      "research_data_files": [
-        "file_sample1_r1",
-        "file_sample1_r2"
-      ]
-    },
-    {
-      "alias": "SAMPLE3_SE",
-      "analysis_method": "VARCALL",
-      "research_data_files": [
-        "file_sample3_r1"
-      ]
-    }
-  ],
   "research_data_files": [
-    {
-      "alias": "file_1234N_bam",
-      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam",
-      "format": "BAM"
-    },
-    {
-      "alias": "file_1234N_bai",
-      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam.bai",
-      "format": "BAI"
-    },
-    {
-      "alias": "file_1234N_vcf",
-      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/vcf/Strelka_1234N_variants.vcf.gz",
-      "format": "VCF"
-    },
-    {
-      "alias": "file_1234T_bam",
-      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam",
-      "format": "BAM"
-    },
-    {
-      "alias": "file_1234T_bai",
-      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam.bai",
-      "format": "BAI"
-    },
     {
       "alias": "file_sample1_r1",
       "name": "https://raw.githubusercontent.com/nf-core/test-datasets/viralrecon/illumina/amplicon/sample1_R1.fastq.gz",
-      "format": "FASTQ"
+      "format": "FASTQ",
+      "experiments": ["exp_1234T", "exp_SAMPLE1_PE"]
     },
     {
       "alias": "file_sample1_r2",
       "name": "https://raw.githubusercontent.com/nf-core/test-datasets/viralrecon/illumina/amplicon/sample1_R2.fastq.gz",
-      "format": "FASTQ"
+      "format": "FASTQ",
+      "experiments": ["exp_1234T", "exp_SAMPLE1_PE"]
     },
     {
       "alias": "file_sample3_r1",
       "name": "https://raw.githubusercontent.com/nf-core/test-datasets/viralrecon/illumina/amplicon/sample1_R1.fastq.gz",
-      "format": "FASTQ"
+      "format": "FASTQ",
+      "experiments": ["exp_SAMPLE3_SE"]
+    }
+  ],
+  "analyses": [
+    {
+      "alias": "ana_1234N",
+      "analysis_method": "VARCALL",
+      "research_data_files": ["file_sample1_r1"]
+    },
+    {
+      "alias": "ana_1234T",
+      "analysis_method": "VARCALL",
+      "research_data_files": ["file_sample1_r2"]
+    },
+    {
+      "alias": "ana_SAMPLE1",
+      "analysis_method": "VARCALL",
+      "research_data_files": ["file_sample1_r1", "file_sample1_r2"]
+    },
+    {
+      "alias": "ana_SAMPLE3",
+      "analysis_method": "VARCALL",
+      "research_data_files": ["file_sample3_r1"]
+    }
+  ],
+  "process_data_files": [
+    {
+      "alias": "file_1234N_bam",
+      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam",
+      "format": "BAM",
+      "analysis": "ana_1234N"
+    },
+    {
+      "alias": "file_1234N_bai",
+      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam.bai",
+      "format": "BAI",
+      "analysis": "ana_1234N"
+    },
+    {
+      "alias": "file_1234N_vcf",
+      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/vcf/Strelka_1234N_variants.vcf.gz",
+      "format": "VCF",
+      "analysis": "ana_1234N"
+    },
+    {
+      "alias": "file_1234T_bam",
+      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam",
+      "format": "BAM",
+      "analysis": "ana_1234T"
+    },
+    {
+      "alias": "file_1234T_bai",
+      "name": "https://raw.githubusercontent.com/nf-core/test-datasets/sarek/testdata/mappedbam/1234N.bam.bai",
+      "format": "BAI",
+      "analysis": "ana_1234T"
     }
   ]
 }

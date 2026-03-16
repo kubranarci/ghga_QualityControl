@@ -1,6 +1,6 @@
 {
-    "name": "ghga-de/qcmetrics",
-    "homePage": "https://github.com/ghga-de/qcmetrics",
+    "name": "ghga-de/aqua",
+    "homePage": "https://github.com/ghga-de/aqua",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {

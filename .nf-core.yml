@@ -51,7 +51,7 @@ lint:
 
 template:
   org: GHGA
-  name: QC
+  name: GHGA AQuA
   description: "Grand Quality Control nextflow pipeline for GHGA datasets "
   author: "@kubranarci"
   version: 1.0.0dev

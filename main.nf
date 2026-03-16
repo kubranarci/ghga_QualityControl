@@ -13,7 +13,7 @@ params.gtf       = getGenomeAttribute('gtf')
 params.bed12     = getGenomeAttribute('bed12')
 
 
-include { QCMETRICS               } from './workflows/qcmetrics'
+include { AQUA                    } from './workflows/aqua'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_qc_pipeline'
 include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_qc_pipeline'
 include { METADATA_TO_SAMPLESHEET } from './modules/local/metadata_to_samplesheet'
@@ -27,7 +27,7 @@ include { METADATA_TO_SAMPLESHEET } from './modules/local/metadata_to_sampleshee
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow GHGA_QCMETRICS {
+workflow GHGA_AQUA {
 
     take:
     samplesheet // channel: samplesheet read in from --input
@@ -37,11 +37,11 @@ workflow GHGA_QCMETRICS {
     //
     // WORKFLOW: Run pipeline
     //
-    QCMETRICS (
+    AQUA (
         samplesheet
     )
     emit:
-    multiqc_report = QCMETRICS.out.multiqc_report // channel: /path/to/multiqc_report.html
+    multiqc_report = AQUA.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -83,7 +83,7 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    GHGA_QCMETRICS (
+    GHGA_AQUA (
         PIPELINE_INITIALISATION.out.samplesheet
     )
     //
@@ -95,7 +95,7 @@ workflow {
         params.plaintext_email,
         params.outdir,
         params.monochrome_logs,
-        GHGA_QCMETRICS.out.multiqc_report
+        GHGA_AQUA.out.multiqc_report
     )
 }
 

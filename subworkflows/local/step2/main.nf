@@ -50,7 +50,7 @@ workflow STEP2 {
 
     // Run indexing for samples missing an index
     SAMTOOLS_INDEX ( 
-        ch_bam_indexed_split.no_index 
+        ch_bam_indexed_split.no_index.map { meta, bam, _index -> tuple(meta, bam) }, 
         )
 
     // Merge the newly created indexes with the BAM files
@@ -139,7 +139,7 @@ workflow STEP2 {
     ch_rseqc_in = ch_final_bam_indexed.filter { meta, bam, bai -> meta.experiment_method?.toLowerCase()?.contains("rna") }
     if (!params.skip_tools?.contains('rseqc')) {
          RSEQC_BAMSTAT(
-             ch_rseqc_in
+             ch_rseqc_in.map { meta, bam, _bai -> tuple(meta, bam) }
          )
          ch_multiqc_files = ch_multiqc_files.mix(RSEQC_BAMSTAT.out.txt.map { _meta, file -> file }.collect())
          ch_versions = ch_versions.mix(RSEQC_BAMSTAT.out.versions)

@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the ghga-de/qcmetrics pipeline
+// Subworkflow with functionality specific to the ghga-de/aqua pipeline
 //
 
 /*

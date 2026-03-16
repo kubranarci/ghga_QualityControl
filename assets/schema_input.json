@@ -1,8 +1,8 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/GHGA/qc/master/assets/schema_input.json",
-    "title": "ghga_de qcmetrics pipeline params input schema",
-    "description": "Schema for the file provided with params input",
+    "$id": "https://raw.githubusercontent.com/ghga-de/aqua/master/assets/schema_input.json",
+    "title": "GHGA AQuA pipeline params input schema",
+    "description": "Schema for the file provided with params input - Corrected for missing fastq_1 references",
     "type": "array",
     "items": {
         "type": "object",
@@ -55,6 +55,7 @@
             },
             "data_files": {
                 "type": "string",
+                "minLength": 1,
                 "errorMessage": "Data files must be provided",
                 "meta": ["data_files"]
             },
@@ -62,6 +63,7 @@
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
+                "minLength": 1,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
                 "errorMessage": "FastQ file for reads 1 must be provided, cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
             },
@@ -69,6 +71,7 @@
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
+                "minLength": 1,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
                 "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
             },
@@ -86,12 +89,16 @@
                 "meta": ["lane"]
             },
             "single_end": {
-                "type": "boolean",
-                "meta": ["single_end"]
+                "meta": ["single_end"],
+                "oneOf": [
+                    { "type": "boolean" },
+                    { "type": "string", "enum": ["true", "false", "TRUE", "FALSE"] }
+                ]
             },
             "cram": {
                 "errorMessage": "CRAM file cannot contain spaces and must have extension '.cram'",
                 "type": "string",
+                "minLength": 1,
                 "pattern": "^\\S+\\.cram$",
                 "format": "file-path",
                 "exists": true
@@ -99,6 +106,7 @@
             "crai": {
                 "errorMessage": "CRAM index file cannot contain spaces and must have extension '.crai'",
                 "type": "string",
+                "minLength": 1,
                 "pattern": "^\\S+\\.crai$",
                 "format": "file-path",
                 "exists": true
@@ -106,6 +114,7 @@
             "bam": {
                 "errorMessage": "BAM file cannot contain spaces and must have extension '.bam'",
                 "type": "string",
+                "minLength": 1,
                 "pattern": "^\\S+\\.bam$",
                 "format": "file-path",
                 "exists": true
@@ -113,24 +122,27 @@
             "bai": {
                 "errorMessage": "BAM index file cannot contain spaces and must have extension '.bai'",
                 "type": "string",
+                "minLength": 1,
                 "pattern": "^\\S+\\.bai$",
                 "format": "file-path",
                 "exists": true
             },
             "vcf": {
-                "errorMessage": "VCF file for reads 1 cannot contain spaces and must have extension '.vcf' or '.vcf.gz'",
+                "errorMessage": "VCF file cannot contain spaces and must have extension '.vcf' or '.vcf.gz'",
                 "type": "string",
+                "minLength": 1,
                 "pattern": "^\\S+\\.vcf(\\.gz)?$",
                 "format": "file-path",
                 "exists": true
             }
         },
-        "oneOf": [
-            { "required": ["fastq_1"], "not": { "required": ["bam", "cram", "vcf", "data_files"] } },
-            { "required": ["bam"], "not": { "required": ["fastq_1", "cram", "vcf", "data_files"] } },
-            { "required": ["cram"], "not": { "required": ["fastq_1", "vcf", "bam", "data_files"] } },
-            { "required": ["vcf"], "not": { "required": ["fastq_1", "cram", "bam", "data_files"] } },
-            { "required": ["data_files"], "not": { "required": ["fastq_1", "cram", "bam", "vcf"] } }
+        "anyOf": [
+            { "required": ["fastq_1"] },
+            { "required": ["fastq_2"] },
+            { "required": ["bam"] },
+            { "required": ["cram"] },
+            { "required": ["vcf"] },
+            { "required": ["data_files"] }
         ],
         "required": ["sample"]
     }

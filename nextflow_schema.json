@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/GHGA/qc/master/nextflow_schema.json",
-    "title": "ghga-de/qcmetrics pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/ghga-de/aqua/master/nextflow_schema.json",
+    "title": "GHGA AQuA pipeline parameters",
     "description": "Quality Control nextflow pipeline for GHGA datasets reporting QC metrics and generating a MultiQC report.",
     "type": "object",
     "$defs": {

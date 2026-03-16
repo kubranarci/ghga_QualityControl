@@ -25,7 +25,7 @@ include { STEP3                  } from '../subworkflows/local/step3'
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-workflow QCMETRICS {
+workflow AQUA {
 
     take:
     ch_samplesheet // channel: samplesheet read in from --input
@@ -50,7 +50,7 @@ workflow QCMETRICS {
     // create empty channels for versions and multiqc files
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
-
+    
     ch_samplesheet.branch{ it ->
         def meta = it[0]
         step1: meta.step == 1

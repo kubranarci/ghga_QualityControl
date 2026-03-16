@@ -1,7 +1,7 @@
-# ghga-de/QCMetrics Nextflow Pipeline
+# GHGA AQuA Nextflow Pipeline
 
-[![GitHub Actions CI Status](https://github.com/GHGA/qc/actions/workflows/nf-test.yml/badge.svg)](https://github.com/GHGA/qc/actions/workflows/nf-test.yml)
-[![GitHub Actions Linting Status](https://github.com/GHGA/qc/actions/workflows/linting.yml/badge.svg)](https://github.com/GHGA/qc/actions/workflows/linting.yml)
+[![GitHub Actions CI Status](https://github.com/ghga-de/aqua/actions/workflows/nf-test.yml/badge.svg)](https://github.com/ghga-de/aqua/actions/workflows/nf-test.yml)
+[![GitHub Actions Linting Status](https://github.com/ghga-de/aqua/actions/workflows/linting.yml/badge.svg)](https://github.com/GHGA/qc/actions/workflows/linting.yml)
 [![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
 
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A524.10.5-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
@@ -15,7 +15,7 @@
 
 ## Introduction
 
-**ghga-de/QCMetrics** is a bioinformatics pipeline that performs basic quality control over input datasets without altering the raw data. It accepts three main input types:
+**GHGA AQuA (Automatic Quality Assessment) Pipeline** is a bioinformatics pipeline that performs basic quality control over input datasets without altering the raw data. It accepts three main input types:
 1. Raw FastQ files
 2. Aligned BAM/CRAM files
 3. Variant called VCF/BCF files
@@ -97,10 +97,12 @@ nextflow run main.nf \
 
 ## Credits
 
-ghga-de/QCMetrics was originally written by @kubranarci.
+GHGA AQuA nextflow pipeline was originally written by Kubra Narci @kubranarci. 
 
-We thank the following people for their extensive assistance in the development of this pipeline:
-
+The team members who assists and develops the pipeline:
+    - Manuel Kösters
+    - Virag Sharma
+    - Ruchi Tanavade 
 
 ## Contributions and Support
 

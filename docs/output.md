@@ -1,4 +1,4 @@
-# ghga-de/qcmetrics: Output
+# ghga-de/aqua: Output
 
 ## Introduction
 
