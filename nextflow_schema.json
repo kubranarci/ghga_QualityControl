@@ -70,18 +70,15 @@
                             "samtools_stats",
                             "bcftools_stats",
                             "verifybamid",
-                            "rseqc"
+                            "rseqc",
+                            "phantompeakqualtools",
+                            "ngsbits_samplegender",
+                            "picard_collectinsertsizemetrics",
+                            "ataqv" 
                         ]
                     },
                     "description": "Tools to skip when running the pipeline.",
                     "help_text": "If you want to skip any of the tools in the pipeline, you can specify them here. This is an array parameter, so you can specify multiple tools to skip."
-                },
-                "predict_sex": {
-                    "type": "boolean",
-                    "default": "false",
-                    "fa_icon": "fas fa-play",
-                    "description": "Predict sex",
-                    "help_text": "Run sex prediction"
                 },
                 "samplegender_method": {
                     "type": "string",
@@ -89,13 +86,6 @@
                     "description": "Method selection for ngs-bits samplegender",
                     "fa_icon": "fas fa-align-center",
                     "enum": ["xy", "hetx", "sry"]
-                },
-                "run_contamination_estimation": {
-                    "type": "boolean",
-                    "default": "false",
-                    "fa_icon": "fas fa-play",
-                    "description": "Run sample contamination estimation with VerifyBamID.",
-                    "help_text": "Run sample contamination estimation with VerifyBamID. This requires a reference VCF file to be provided with the `--refvcf` parameter."
                 },
                 "email": {
                     "type": "string",
