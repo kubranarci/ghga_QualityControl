@@ -27,16 +27,16 @@ The pipeline automatically selects the appropriate quality control tools based o
 
 The following table details which tools are executed based on the analysis method and input data type provided in the samplesheet.
 
-| Analysis Method     | Read QC (FastQ)      | Alignment QC (BAM/CRAM)                                   | Variant QC (VCF) |
-| :------------------ | :------------------- | :-------------------------------------------------------- | :--------------- |
-| **WGS / WES / TES** | FastQC, FastP, SeqFU | Mosdepth, Samtools Stats, Picard, VerifyBamID, NGS-Bits\* | BCFTools Stats   |
-| **ATAC / ChIP-Seq** | FastQC, FastP, SeqFU | Mosdepth, Samtools Stats, Picard                          | BCFTools Stats   |
-| **RNA-Seq / smRNA** | FastQC, FastP, SeqFU | RSeQC                                                     | BCFTools Stats   |
-| **Nanopore**        | FastQC, NanoPlot     | -                                                         | BCFTools Stats   |
-| **PacBio**          | FastPLong            | -                                                         | BCFTools Stats   |
-| **MethylSeq**       | FastQC, FastP, SeqFU | -                                                         | BCFTools Stats   |
-
-> \* _NGS-Bits SampleGender is run for WGS if `predict_sex` is enabled._
+| Analysis Method     | Read QC (FastQ)      | Alignment QC (BAM/CRAM)                                           | Variant QC (VCF) |
+| :------------------ | :------------------- | :---------------------------------------------------------------- | :--------------- |
+| **WGS**             | FastQC, FastP, SeqFU | Mosdepth, Samtools Stats, Picard, VerifyBamID, NGS-Bits\*, Preseq | BCFTools Stats   |
+| **WES / TES**       | FastQC, FastP, SeqFU | Mosdepth, Samtools Stats, Picard, VerifyBamID, Preseq             | BCFTools Stats   |
+| **ATAC-Seq**        | FastQC, FastP, SeqFU | Mosdepth, Samtools Stats, Picard, Ataqv, Preseq                   | BCFTools Stats   |
+| **ChIP-Seq**        | FastQC, FastP, SeqFU | Mosdepth, Samtools Stats, Phantompeakqualtools, Preseq            | BCFTools Stats   |
+| **RNA-Seq / smRNA** | FastQC, FastP, SeqFU | RSeQC, Preseq                                                     | BCFTools Stats   |
+| **Nanopore**        | FastQC, NanoPlot     | -                                                                 | BCFTools Stats   |
+| **PacBio**          | FastPLong            | -                                                                 | BCFTools Stats   |
+| **MethylSeq**       | FastQC, FastP, SeqFU | Samtools Stats                                                    | BCFTools Stats   |
 
 ## Usage
 
@@ -118,28 +118,32 @@ nextflow run main.nf \
 
 ### Read QC
 
-- [**FastQC**](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/): Comprehensive quality control checks on raw sequence data.
-- [**FastP**](https://github.com/OpenGene/fastp): All-in-one FASTQ preprocessor (used here for QC metrics).
-- [**SeqFU**](https://telatin.github.io/seqfu2/tools/metadata.html): Sequence statstics
-- [**NanoPlot**](https://github.com/wdecoster/NanoPlot): Plotting tool for long read sequencing data and alignments.
-- [**FastPLong**](https://github.com/OpenGene/fastplong): Quality control for long read data (PacBio).
+- [**FastQC**](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/): Basic quality control checks for raw sequence data.
+- [**FastP**](https://github.com/OpenGene/fastp): A fast processor used to generate read metrics for quality control.
+- [**SeqFU**](https://telatin.github.io/seqfu2/): Tools for gathering sequence statistics and metadata.
+- [**NanoPlot**](https://github.com/wdecoster/NanoPlot): Specialized plotting for long read sequencing data.
+- [**FastPLong**](https://github.com/OpenGene/fastplong): Quality control specifically for PacBio and other long read data.
 
 ### Alignment QC
 
-- [**Mosdepth**](https://github.com/brentp/mosdepth): Fast BAM/CRAM depth calculation.
-- [**Samtools Stats**](http://www.htslib.org/doc/samtools.html): General statistics for alignment files.
-- [**Picard CollectMultipleMetrics**](https://broadinstitute.github.io/picard/): Collects multiple classes of metrics from alignment files.
-- [**RSeQC**](http://rseqc.sourceforge.net/): Quality control for RNA-seq experiments.
-- [**NGS-Bits SampleGender**](https://github.com/imgag/ngs-bits): Sex determination based on coverage.
-- [**VerifyBamID**](https://github.com/Griffan/VerifyBamID): A robust tool for DNA contamination estimation from sequence reads using ancestry-agnostic method.
+- [**Mosdepth**](https://github.com/brentp/mosdepth): Fast depth calculation for BAM or CRAM files using target intervals for specific assays.
+- [**Samtools Stats**](http://www.htslib.org/doc/samtools.html): Comprehensive statistics for alignment files.
+- [**Picard CollectMultipleMetrics**](https://broadinstitute.github.io/picard/): Metrics for DNA library quality and fragmentation.
+- [**Ataqv**](https://github.com/ParkerLab/ataqv): Specialized quality control for ATAC sequencing experiments.
+- [**Phantompeakqualtools**](https://github.com/kundajelab/phantompeakqualtools): Tools for quality control of ChIP sequencing datasets.
+- [**RSeQC**](http://rseqc.sourceforge.net/): A quality control package designed for RNA sequencing experiments.
+- [**Preseq**](https://github.com/smithlabcode/preseq): Software to estimate library complexity and duplication.
+- [**VerifyBamID**](https://github.com/Griffan/VerifyBamID): Estimation of DNA contamination using ancestry agnostic methods.
+- [**NGSBits SampleGender**](https://github.com/imgag/ngs-bits): Determination of biological sex based on sequencing coverage.
 
 ### Variant QC
 
-- [**BCFTools Stats**](http://samtools.github.io/bcftools/bcftools.html): Statistics for VCF/BCF files.
+- [**BCFTools Stats**](http://samtools.github.io/bcftools/bcftools.html): Detailed statistics and metrics for VCF and BCF files.
 
 ### Reporting
 
-- [**MultiQC**](http://multiqc.info/): Aggregates results from all tools into a single HTML report.
+- [**MultiQC**](http://multiqc.info/): A tool that combines all quality control results into one interactive report.
+- [**MultiQC-mapper**](https://github.com/MKoesters/multiqc-mapper): A tool unifies QC reports to report back to the GHGA dataportal.
 
 ## Credits
 

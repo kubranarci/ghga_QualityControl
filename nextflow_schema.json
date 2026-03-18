@@ -74,7 +74,7 @@
                             "phantompeakqualtools",
                             "ngsbits_samplegender",
                             "picard_collectinsertsizemetrics",
-                            "ataqv" 
+                            "ataqv"
                         ]
                     },
                     "description": "Tools to skip when running the pipeline.",
