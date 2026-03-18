@@ -11,7 +11,6 @@ on:
     types: [published]
   workflow_dispatch:
 
-# Cancel if a newer run is started
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -39,7 +38,6 @@ jobs:
           ls -la ./
           rm -rf ./* || true
           rm -rf ./.??* || true
-          ls -la ./
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -51,11 +49,6 @@ jobs:
           NFT_VER: ${{ env.NFT_VER }}
         with:
           max_shards: 7
-
-      - name: debug
-        run: |
-          echo ${{ steps.set-shards.outputs.shard }}
-          echo ${{ steps.set-shards.outputs.total_shards }}
 
   nf-test:
     name: "${{ matrix.profile }} | ${{ matrix.NXF_VER }} | ${{ matrix.shard }}/${{ needs.nf-test-changes.outputs.total_shards }}"
@@ -103,10 +96,6 @@ jobs:
         run: |
           if [[ "${{ steps.run_nf_test.outcome }}" == "failure" ]]; then
             echo "::error::Test with ${{ matrix.NXF_VER }} failed"
-            echo "## ❌ Test failed: ${{ matrix.profile }} | ${{ matrix.NXF_VER }} | Shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}" >> $GITHUB_STEP_SUMMARY
-            if [[ "${{ matrix.NXF_VER }}" == "latest-everything" ]]; then
-              echo "::warning::Test with latest-everything failed but will not cause workflow failure."
-            fi
             if [[ "${{ matrix.NXF_VER }}" != "latest-everything" ]]; then
               exit 1
             fi
@@ -117,7 +106,7 @@ jobs:
     if: always()
     runs-on: 
       - self-hosted
-      - runner=2cpu-linux-x64
+      - runner=4cpu-linux-x64
     steps:
       - name: One or more tests failed
         if: ${{ contains(needs.*.result, 'failure') }}
