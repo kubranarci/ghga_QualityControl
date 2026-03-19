@@ -34,31 +34,26 @@ workflow AQUA {
 
     // create reference channels ////
 
-    ch_fasta = Channel
-        .fromPath(params.fasta, checkIfExists: true)
-        .map { fasta -> tuple([id: fasta.getSimpleName()], fasta) }
-        .collect()
 
-    ch_fai = params.fasta_fai
-        ? Channel.fromPath(params.fasta_fai, checkIfExists: true).map { fai -> tuple([id: fai.getSimpleName()], fai) }.collect()
-        : Channel.empty()
-    ch_intervals = params.intervals
-        ? Channel.fromPath(params.intervals, checkIfExists: true).map { intervals -> tuple([id: intervals.getSimpleName()], intervals) }.collect()
-        : Channel.empty()
-    ch_gtf = params.gtf
-        ? Channel.fromPath(params.gtf, checkIfExists: true).map { gtf -> tuple([id: gtf.getSimpleName()], gtf) }.collect()
-        : Channel.empty()
-    ch_bed12 = params.bed12
-        ? Channel.fromPath(params.bed12, checkIfExists: true).map { bed12 -> tuple([id: bed12.getSimpleName()], bed12) }.collect()
-        : Channel.empty()
-    ch_refvcf = params.refvcf
-        ? Channel.fromPath(params.refvcf, checkIfExists: true).collect()
-        : Channel.empty()
+    ch_fasta       = Channel.fromPath(params.fasta, checkIfExists: true)
+                        .map{ fasta -> tuple([id: fasta.getSimpleName()], fasta) }.collect()
+
+    ch_fai         = params.fasta_fai ? Channel.fromPath(params.fasta_fai, checkIfExists: true).map{ fai -> tuple([id: fai.getSimpleName()], fai) }.collect()
+                                         : Channel.empty()
+    ch_intervals   = params.intervals ? Channel.fromPath(params.intervals, checkIfExists: true).map{ intervals -> tuple([id: intervals.getSimpleName()], intervals) }.collect()
+                                         : Channel.empty()
+    ch_gtf         = params.gtf       ? Channel.fromPath(params.gtf, checkIfExists: true).map{ gtf -> tuple([id: gtf.getSimpleName()], gtf) }.collect()
+                                         : Channel.empty()
+    ch_bed12       = params.bed12     ? Channel.fromPath(params.bed12, checkIfExists: true).map{ bed12 -> tuple([id: bed12.getSimpleName()], bed12) }.collect()
+                                         : Channel.empty()
+    ch_refvcf      = params.refvcf    ? Channel.fromPath(params.refvcf, checkIfExists: true).collect()
+                                         : Channel.empty()
+
 
     // create empty channels for versions and multiqc files
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
-    ch_samplesheet.view()
+
     ch_samplesheet
         .branch { it ->
             def meta = it[0]
