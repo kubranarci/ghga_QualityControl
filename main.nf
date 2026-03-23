@@ -6,17 +6,16 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 include { getGenomeAttribute      } from './subworkflows/local/utils_nfcore_qc_pipeline'
-
-
-include { AQUA                    } from './workflows/aqua'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_qc_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_qc_pipeline'
-include { METADATA_TO_SAMPLESHEET } from './modules/local/metadata_to_samplesheet'
 params.fasta     = getGenomeAttribute('fasta')
 params.fasta_fai = getGenomeAttribute('fasta_fai')
 params.intervals = getGenomeAttribute('intervals')
 params.gtf       = getGenomeAttribute('gtf')
 params.bed12     = getGenomeAttribute('bed12')
+include { AQUA                    } from './workflows/aqua'
+include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_qc_pipeline'
+include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_qc_pipeline'
+include { METADATA_TO_SAMPLESHEET } from './modules/local/metadata_to_samplesheet'
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
